@@ -2,6 +2,8 @@ from flask import Flask, render_template
 from bs4 import BeautifulSoup
 import requests
 import werkzeug
+import os
+import sys
 
 headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/113.0"}
 
@@ -126,4 +128,9 @@ def handle_internal_server_error(exception):
 
 
 if __name__ == '__main__':
-    app.run()
+    if getattr(sys, 'frozen', False):
+        template_folder = os.path.join(sys._MEIPASS, 'templates')
+        static_folder = os.path.join(sys._MEIPASS, 'static')
+        app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
+    else:
+        app = Flask(__name__)
