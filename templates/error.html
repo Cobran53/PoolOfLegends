@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Error :(</title>
+    <link rel="stylesheet" href="{{ url_for("static", filename="styles.css") }}"/>
+</head>
+<body>
+<h1><a class="a_title" href="{{ url_for("home") }}">Pool of Legends</a></h1>
+
+<div class="container">
+    <h2>Hey! The internal server had an error. </h2>
+    <p>They can be several causes :</p>
+    <ul>
+        <li>
+            If you were trying an off-meta champion in a specific lane (e.g. Rell Top), maybe there is not enough data.
+            Try a more conventional champion.
+        </li>
+        <li>
+            If you inputed a custom patch, check your spelling. It should look like 13.09, with a dot and 2 decimals!
+            A patch can also be too old, so not on OP.GG anymore. <i>(PBE is not supported.)</i>
+        </li>
+        <li>
+            If you used "Latest", maybe the patch is so recent there isn't enough data. Try to input the previous patch
+            in "custom". <i>(This is especially true if your pick is rare-ish: Karthus Bot, Seraphine Mid...)</i>
+        </li>
+    </ul>
+    <p>
+        If none apply, I have no idea what happened! <br>
+        Here's the browser exception :<br>
+        {{ exception }}<br>
+    </p>
+
+    <div class="evaluate">
+        <button onclick="goBack()">Go Back</button>
+    </div>
+
+    <script>
+        // Function to go back to the previous page
+        function goBack() {
+            window.history.back();
+        }
+    </script>
+</div>
+</body>
+</html>
+

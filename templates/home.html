@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<!--suppress HtmlFormInputWithoutLabel -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="{{ url_for("static", filename="styles.css") }}"/>
+</head>
+<body>
+<script>
+    function submit() {
+        let pool = document.querySelector('multi-input').getValues();
+        for (let i = 0; i < pool.length; i++) {
+            pool[i] = pool[i].replace("'", "").replace(" ", "").replace(".", "")
+        }
+
+        let role = document.querySelector('input[name="role"]:checked').value;
+
+        let value_patch = document.querySelector('input[name="patch"]:checked').value;
+        if (value_patch === "custom") {
+            let patch = document.getElementById("patch_custom_text").value;
+            window.location.href = "./results/" + pool.join(",") + "/" + role + "/" + patch;
+        } else {
+            window.location.href = "./results/" + pool.join(",") + "/" + role;
+        }
+    }
+</script>
+<h1><a class="a_title" href="{{ url_for("home") }}">Pool of Legends</a></h1>
+
+<div class="container">
+    <fieldset>
+        <legend>Champions</legend>
+        <multi-input id="multi-champs">
+            <input id="input-champs" list="champs">
+            <datalist id="champs">
+                {% for champ in champs %}
+                    <option value="{{ champ }}"></option>
+                {% endfor %}
+            </datalist>
+        </multi-input>
+    </fieldset>
+
+    <fieldset class="radio_fieldset">
+        <legend>Roles</legend>
+        <div class="radio">
+            <input type="radio" id="top" name="role" value="top">
+            <label for="top">Top</label>
+            <input type="radio" id="jungle" name="role" value="jungle">
+            <label for="jungle">Jungle</label>
+            <input type="radio" id="mid" name="role" value="mid" checked>
+            <label for="mid">Mid</label>
+            <input type="radio" id="bot" name="role" value="bot">
+            <label for="bot">Bot</label>
+            <input type="radio" id="support" name="role" value="support">
+            <label for="support">Support</label>
+        </div>
+    </fieldset>
+
+
+    <fieldset class="radio_fieldset">
+        <legend>Patchs</legend>
+        <div class="radio">
+            <input type="radio" id="latest" name="patch" value="latest" checked>
+            <label for="latest">
+                Latest
+            </label>
+
+            <input type="radio" id="custom" name="patch" value="custom">
+            <label for="latest">
+                Custom <input type="text" id="patch_custom_text" name="patch" placeholder="13.09" disabled>
+            </label>
+        </div>
+    </fieldset>
+
+    <div class="evaluate">
+        <input id="evaluate" type="button" name="button" onclick="submit()" value="Evaluate">
+    </div>
+</div>
+<script src="static/js/multi-input.js"></script>
+<script>
+    let radio_latest = document.getElementById("latest");
+    let radio_custom = document.getElementById("custom");
+    let text_custom = document.getElementById("patch_custom_text");
+
+    radio_latest.addEventListener("change", function() {
+        text_custom.disabled = true;
+    });
+
+    radio_custom.addEventListener("change", function() {
+        text_custom.disabled = false;
+    });
+</script>
+</body>
+</html>

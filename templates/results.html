@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>
+        {% for pool_champ in pool[:-1] %}
+                {{ pool_champ }},
+        {% endfor %}
+        {{ pool[-1] }}
+        | {{ role }}
+    </title>
+    <link rel="stylesheet" href="{{ url_for("static", filename="styles.css") }}"/>
+</head>
+<body>
+<script>
+    function sortTable(n, numerically = false) {
+        console.log(n)
+        let table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
+        table = document.getElementById("table_pool_evaluation");
+        switching = true;
+        dir = "asc";
+        while (switching) {
+            switching = false;
+            rows = table.rows;
+            for (i = 1; i < (rows.length - 1); i++) {
+                shouldSwitch = false;
+                x = rows[i].getElementsByTagName("TD")[n];
+                y = rows[i + 1].getElementsByTagName("TD")[n];
+                if (dir === "asc") {
+                    if (numerically) {
+                        if (Number(x.innerHTML.replace("%","").replace(" ","")) > Number(y.innerHTML.replace("%","").replace(" ",""))) {
+                            shouldSwitch = true;
+                            break;
+                        }
+                    } else if (x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                } else if (dir === "desc") {
+                    if (numerically) {
+                        if (Number(x.innerHTML.replace("%","").replace(" ","")) < Number(y.innerHTML.replace("%","").replace(" ",""))) {
+                            shouldSwitch = true;
+                            break;
+                        }
+                    } else if (x.innerHTML.toLowerCase() < y.innerHTML.toLowerCase()) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                }
+            }
+            if (shouldSwitch) {
+                rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                switching = true;
+                switchcount++;
+            } else {
+                /* If no switching has been done AND the direction is "asc",
+                set the direction to "desc" and run the while loop again. */
+                if (switchcount === 0 && dir === "asc") {
+                    dir = "desc";
+                    switching = true;
+                }
+            }
+        }
+    }
+
+
+</script>
+
+<h1><a class="a_title" href="{{ url_for("home") }}">Pool of Legends</a></h1>
+<div class="aide">
+    <details id="details_aide">
+        <summary id="summary-aide">
+            Need help?
+        </summary>
+        <details class="click-here">
+            <summary class="click-here">
+                How to find a good ban?
+            </summary>
+            Click on the "Best counter" column to sort it, and take one amongst the worst ones!
+            If a lot of them are under 50%, you may want to consider adding another champion to your pool.
+        </details>
+        <details class="click-here">
+            <summary class="click-here">
+                It's a bit long to launch, can I download this list?
+            </summary>
+            Yes! Simply right-click anywhere, and choose "Save as". This will give you a copy of the webpage,
+            though without the pretty colors :(
+        </details>
+        <details class="click-here">
+            <summary class="click-here">
+                What does all those 0 and 0% mean?
+            </summary>
+            When there isn't enough data on a specific matchup, OP.GG doesn't <s>give a s</s> show the data,
+            making it impossible to show here :(
+        </details>
+        <details class="click-here">
+            <summary class="click-here">
+                I've hidden too much stuff, how can I get it back?
+            </summary>
+            <button onclick=ShowAll()>Show all columns</button>
+        </details>
+        <details class="click-here">
+            <summary class="click-here">
+                Uh, the table is empty...
+            </summary>
+            <ul class="table_empty_ul">
+                <li>
+                    If you were trying an off-meta champion in a specific lane (e.g. Rell Top), maybe there is not enough data.
+                    Try a more conventional champion.
+                </li>
+                <li>
+                    If you used "Latest", maybe the patch is so recent there isn't enough data. Try to input the previous patch
+                    in "custom". <i>(This is especially true if your pick is rare-ish: Karthus Bot, Seraphine Mid...)</i>
+                </li>
+            </ul>
+        </details>
+        <details class="click-here">
+            <summary class="click-here">
+                Something isn't working right...
+            </summary>
+            Here's the GitHub link, and the Reddit link, if I didn't forget to add them :) At worst, you can try sending them to <a href="mailto:bepeau2@gmail.com">bepeau2@gmail.com</a> with an object starting with "[Pool Of Legends]". If this e-mail gets filled with spam, I will close it.
+        </details>
+    </details>`
+</div>
+<div class="container">
+    <h2>
+        {% if (pool|length == 1) %}
+            {{ pool[0] }} {{ role.capitalize() }}
+        {% else %}
+            Pool made of
+            {% for pool_champ in pool[:-1] %}
+                {{ pool_champ }},
+            {% endfor %}
+            and {{ pool[-1] }} for {{ role.capitalize() }}
+        {% endif %}
+
+        {% if patch!=None %}
+            in patch {{ patch }}.
+        {% else %}
+            in latest patch.
+        {% endif %}
+    </h2>
+
+    <table id="table_pool_evaluation">
+        <colgroup>
+            <col><col><col><col> <!-- i feel so intelligent -->
+            {% for pool_champ in pool %}
+                <col><col>
+            {% endfor %}
+        </colgroup>
+        <tr id="table_headers_pool">
+            <th id=0 onclick="sortTable(0)">Champion</th>
+            <th id=1 onclick="sortTable(1)">Best counter</th>
+            <th id=2 onclick="sortTable(2, numerically=true)">Winrate vs.</th>
+            <th id=3 onclick="sortTable(3, numerically=true)">Games played</th>
+            <script>
+                let table_headers = document.getElementById("table_headers_pool")
+                let pool_WR, pool_games;
+                let i = 4;
+                {% for pool_champ in pool %}
+                    pool_WR = document.createElement('th');
+                    pool_WR.setAttribute("id", (i).toString());
+                    pool_WR.setAttribute("onclick", `sortTable(${i}, numerically=true)`);
+                    pool_WR.textContent = "{{ pool_champ }} WR";
+
+                    pool_games = document.createElement('th');
+                    pool_games.setAttribute("id", (i + 1).toString());
+                    pool_games.setAttribute("onclick", `sortTable(${i + 1}, numerically=true)`);
+                    pool_games.textContent = "{{ pool_champ }} games";
+
+                    button_hide = document.createElement('input');
+                    button_hide.setAttribute("id",`${i}.`)
+                    button_hide.setAttribute("type","button");
+                    button_hide.setAttribute("value","\u{1F441}\uFE0F");
+                    button_hide.onclick = function(event) {
+                        hide_2(event, i); // Call the "abc" function with the event object and "i"
+                    };
+                    button_hide.classList.add("smol_button");
+
+                    i += 2;
+                    table_headers.appendChild(pool_WR);
+                    table_headers.appendChild(pool_games);
+                    pool_games.appendChild(button_hide);
+                {% endfor %}
+
+            </script>
+        </tr>
+        {% for champ, counter, winrate, number, infos_by_champ in pool_evaluation %}
+            <tr>
+                <td>{{ champ }}</td>
+                <td>{{ counter }}</td>
+                <td>{{ winrate }}</td>
+                <td>{{ number }}</td>
+                {% for pool_champ in pool %}
+                    <td>{{ infos_by_champ[pool_champ][0] }}</td>
+                    <td>{{ infos_by_champ[pool_champ][1] }}</td>
+                {% endfor %}
+            </tr>
+        {% endfor %}
+    </table>
+</div>
+<script>
+    function hide_2(event) {
+        event.stopPropagation();
+        const table = document.getElementById('table_pool_evaluation');
+        let i = parseInt(event.currentTarget.id.replace(".",""))
+        if (table) {console.log(table)}
+        if (table.getElementsByTagName('col')) {console.log(table.getElementsByTagName('col'))}
+        let cols = table.getElementsByTagName('col');
+        cols.item(i).style.visibility = "collapse";
+        cols.item(i+1).style.visibility = "collapse";
+    }
+    function ShowAll(){
+        const table = document.getElementById('table_pool_evaluation');
+        let cols = table.getElementsByTagName('col');
+        for (i=0;i<cols.length;i++) {
+            cols.item(i).style.visibility = "visible";
+        }
+    }
+</script>
+</body>
+</html>

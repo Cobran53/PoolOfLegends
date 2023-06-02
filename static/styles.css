@@ -1,0 +1,113 @@
+body {
+    font-family: "Georgia", serif;
+    background-color: #577D86;
+    color: #2f4348;
+}
+
+h1 {
+    background-color: #2f4348;
+    color: #569DAA;
+    width: fit-content;
+    text-align: center;
+    margin: auto;
+    padding: 6px 10px;
+}
+
+h2 {
+    margin-top: 0;
+    text-align: center;
+
+}
+
+.container {
+    background-color: #87CBB9;
+    margin: 20px;
+    padding: 20px;
+    height: min(85vh, fit-content);
+}
+
+fieldset {
+    border: solid #569DAA;
+    width: fit-content;
+    padding: 6px 10px;
+    margin: auto;
+}
+
+table, th, tr, td {
+    border: solid 1px #577D86;
+    border-spacing: 0;
+}
+
+table {
+    margin: auto;
+    width: fit-content;
+}
+
+th {
+    background: #569DAA;
+    padding-right: 1vw;
+    padding-left: 1vw;
+}
+
+td {
+    padding-right: 1vw;
+    padding-left: 1vw;
+    text-align: center;
+}
+
+.smol_button {
+    padding: 1px;
+    font-size: xx-small;
+    margin-left: 1px;
+}
+
+.aide {
+    z-index: 25;
+    background: #e8e4e6;
+    text-align: right;
+    position: fixed;
+    display: flex;
+    border: 8px solid #006d68;
+    max-width: 25%;
+    height: fit-content;
+    top: 20px;
+    right: 20px;
+    padding-right: 10px;
+    padding-left: 10px;
+}
+
+.aide button {
+    width:100%;
+}
+
+.click-here {
+    text-align: left;
+    margin-left: 15px;
+}
+
+.click-here summary {
+    margin-left: 0;
+}
+
+summary {
+    font-weight: bold;
+}
+
+#summary-aide {
+    text-align: left;
+    font-weight: bolder;
+}
+
+.a_title {
+    all: unset;
+}
+
+.evaluate {
+    margin-top: 5px;
+    text-align: center;
+}
+
+.table_empty_ul {
+    margin-top: 0;
+    margin-bottom: 0;
+}
