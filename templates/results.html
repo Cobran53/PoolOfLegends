@@ -24,25 +24,19 @@
             rows = table.rows;
             for (i = 1; i < (rows.length - 1); i++) {
                 shouldSwitch = false;
-                x = rows[i].getElementsByTagName("TD")[n];
-                y = rows[i + 1].getElementsByTagName("TD")[n];
+                x = rows[i].getElementsByTagName("TD")[n].innerHTML.toLowerCase();
+                y = rows[i + 1].getElementsByTagName("TD")[n].innerHTML.toLowerCase();
+                if (numerically) {
+                   x = Number(removeParenthesesText(x.replace("%","").replace(" ","")));
+                   y = Number(removeParenthesesText(y.replace("%","").replace(" ","")));
+                }
                 if (dir === "asc") {
-                    if (numerically) {
-                        if (Number(x.innerHTML.replace("%","").replace(" ","")) > Number(y.innerHTML.replace("%","").replace(" ",""))) {
-                            shouldSwitch = true;
-                            break;
-                        }
-                    } else if (x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) {
+                    if (x > y) {
                         shouldSwitch = true;
                         break;
                     }
                 } else if (dir === "desc") {
-                    if (numerically) {
-                        if (Number(x.innerHTML.replace("%","").replace(" ","")) < Number(y.innerHTML.replace("%","").replace(" ",""))) {
-                            shouldSwitch = true;
-                            break;
-                        }
-                    } else if (x.innerHTML.toLowerCase() < y.innerHTML.toLowerCase()) {
+                    if (x < y) {
                         shouldSwitch = true;
                         break;
                     }
@@ -63,7 +57,10 @@
         }
     }
 
-
+    function removeParenthesesText(inputString) {
+        const pattern = /\([^()]*\)/g;
+        return inputString.replace(pattern, '');
+    }
 </script>
 
 <h1><a class="a_title" href="{{ url_for("home") }}">Pool of Legends</a></h1>
@@ -144,36 +141,29 @@
         <tr id="table_headers_pool">
             <th id=0 onclick="sortTable(0)">Champion</th>
             <th id=1 onclick="sortTable(1)">Best counter</th>
-            <th id=2 onclick="sortTable(2, numerically=true)">Winrate vs.</th>
-            <th id=3 onclick="sortTable(3, numerically=true)">Games played</th>
+            <th id=2 onclick="sortTable(2, numerically=true)">Winrate vs. <br> <span class="parentheses">(Games)</span></th>
             <script>
                 let table_headers = document.getElementById("table_headers_pool")
-                let pool_WR, pool_games;
-                let i = 4;
+                let pool_WR;
+                let i = 3;
                 {% for pool_champ in pool %}
                     pool_WR = document.createElement('th');
                     pool_WR.setAttribute("id", (i).toString());
                     pool_WR.setAttribute("onclick", `sortTable(${i}, numerically=true)`);
-                    pool_WR.textContent = "{{ pool_champ }} WR";
-
-                    pool_games = document.createElement('th');
-                    pool_games.setAttribute("id", (i + 1).toString());
-                    pool_games.setAttribute("onclick", `sortTable(${i + 1}, numerically=true)`);
-                    pool_games.textContent = "{{ pool_champ }} games";
+                    pool_WR.innerHTML = "{{ pool_champ }} WR <br> <span class='parentheses'>(Games)</span>";
 
                     button_hide = document.createElement('input');
                     button_hide.setAttribute("id",`${i}.`)
                     button_hide.setAttribute("type","button");
                     button_hide.setAttribute("value","\u{1F441}\uFE0F");
                     button_hide.onclick = function(event) {
-                        hide_2(event, i); // Call the "abc" function with the event object and "i"
+                        hide(event); // Call the "abc" function with the event object and "i"
                     };
                     button_hide.classList.add("smol_button");
 
-                    i += 2;
+                    i += 1;
                     table_headers.appendChild(pool_WR);
-                    table_headers.appendChild(pool_games);
-                    pool_games.appendChild(button_hide);
+                    pool_WR.appendChild(button_hide);
                 {% endfor %}
 
             </script>
@@ -182,11 +172,12 @@
             <tr>
                 <td>{{ champ }}</td>
                 <td>{{ counter }}</td>
-                <td>{{ winrate }}</td>
-                <td>{{ number }}</td>
+                <td>{{ winrate }} <br> <span class="parentheses">({{ number }})</span></td>
                 {% for pool_champ in pool %}
-                    <td>{{ infos_by_champ[pool_champ][0] }}</td>
-                    <td>{{ infos_by_champ[pool_champ][1] }}</td>
+                    <td>
+                        {{ infos_by_champ[pool_champ][0] }} 
+                        <br> <span class="parentheses">({{ infos_by_champ[pool_champ][1] }})</span>
+                    </td>
                 {% endfor %}
             </tr>
         {% endfor %}
@@ -194,15 +185,11 @@
     <p>All data comes from, and all credit should go, to <a href="u.gg">U.GG</a>.</p>
 </div>
 <script>
-    function hide_2(event) {
+    function hide(event) {
         event.stopPropagation();
         const table = document.getElementById('table_pool_evaluation');
         let i = parseInt(event.currentTarget.id.replace(".",""))
-        if (table) {console.log(table)}
-        if (table.getElementsByTagName('col')) {console.log(table.getElementsByTagName('col'))}
-        let cols = table.getElementsByTagName('col');
-        cols.item(i).style.visibility = "collapse";
-        cols.item(i+1).style.visibility = "collapse";
+        table.item(i).style.visibility = "collapse";
     }
     function ShowAll(){
         const table = document.getElementById('table_pool_evaluation');

@@ -45,14 +45,13 @@ table {
 
 th {
     background: #569DAA;
-    padding-right: 1vw;
-    padding-left: 1vw;
 }
 
-td {
+td, th {
+    position: relative;
+    text-align: center;
     padding-right: 1vw;
     padding-left: 1vw;
-    text-align: center;
 }
 
 .smol_button {
@@ -110,4 +109,9 @@ summary {
 .table_empty_ul {
     margin-top: 0;
     margin-bottom: 0;
+}
+
+.parentheses {
+    display: inline-block;
+    width: 0px;
 }

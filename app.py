@@ -15,25 +15,39 @@ from webdriver_manager.microsoft import EdgeChromiumDriverManager
 from selenium.webdriver.firefox.service import Service as FirefoxService
 from webdriver_manager.firefox import GeckoDriverManager
 
-import requests
 import werkzeug  # server
 import os
 import sys
 import atexit  # do something at exit
 import re  # regular expressions
+import configparser
 
 headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/113.0"}
 
-browsers = [
-    {'name': 'Firefox', 'driver': webdriver.Firefox, 'service': FirefoxService, 'manager': GeckoDriverManager},
-    {'name': 'Chrome', 'driver': webdriver.Chrome, 'service': ChromeService, 'manager': ChromeDriverManager},
-    {'name': 'Edge', 'driver': webdriver.Edge, 'service': EdgeService, 'manager': EdgeChromiumDriverManager},
-]
-
+browsers = {
+    "Firefox": {'name': 'Firefox', 'driver': webdriver.Firefox, 'service': FirefoxService,
+                'manager': GeckoDriverManager},
+    "Chrome": {'name': 'Chrome', 'driver': webdriver.Chrome, 'service': ChromeService, 'manager': ChromeDriverManager},
+    "Edge": {'name': 'Edge', 'driver': webdriver.Edge, 'service': EdgeService, 'manager': EdgeChromiumDriverManager},
+}
 driver = None
 
+config = configparser.ConfigParser()
+config.read("!config.ini")
+
+browsers_in_order = [
+    config["Preferred Browser"]["first_browser"],
+    config["Preferred Browser"]["second_browser"],
+    config["Preferred Browser"]["third_browser"],
+    *[str(i) for i in browsers.keys()]
+]
+browsers_in_order_no_duplicates = []
+[browsers_in_order_no_duplicates.append(x) for x in browsers_in_order if x not in browsers_in_order_no_duplicates and
+ x in ["Firefox", "Edge", "Chrome"]]
+
 # Parcourir chaque navigateur et essayer de l'initialiser
-for browser in browsers:
+for key in browsers_in_order_no_duplicates:
+    browser = browsers[key]
     try:
         service = browser['service'](browser['manager']().install())
         driver = browser['driver'](service=service)
@@ -47,7 +61,7 @@ if driver is None:
     print("Aucun navigateur compatible trouvé. Fermeture...")
 else:
     print("Driver connecté!")
-    driver.implicitly_wait(5)  # Si le driver ne trouve pas un truc, il attendra 5 sec
+    driver.implicitly_wait(config["Wait Time"]["wait_time"])  # Si le driver ne trouve pas un truc, il attendra 5 sec
     # Fermer le navigateur à la fermeture
     atexit.register(lambda: driver.quit())
 
@@ -58,6 +72,7 @@ if getattr(sys, 'frozen', False):
 else:
     app = Flask(__name__)
 
+cookies_enabled = False
 
 def keep_only_numbers(string):
     return re.sub(r'[^0-9.]', '', string)
@@ -71,6 +86,8 @@ def get_champion_winrate(champion, role, patch=None):
     :param role:
     :return:
     """
+    global cookies_enabled
+
     role = role.lower()
     champion = champion.lower()
     try:
@@ -87,10 +104,10 @@ def get_champion_winrate(champion, role, patch=None):
     driver.get(url)
 
     try:
-        if EC.visibility_of_element_located((By.CLASS_NAME, "qc-cmp2-summary-buttons")):
+        if not cookies_enabled and EC.visibility_of_element_located((By.CLASS_NAME, "qc-cmp2-summary-buttons")):
             buttons_cookies = driver.find_element(By.CLASS_NAME, "qc-cmp2-summary-buttons")
             buttons = buttons_cookies.find_elements(By.TAG_NAME, "button")
-            print(buttons)
+            cookies_enabled = False
             driver.execute_script("arguments[0].click();", buttons[2])
     except NoSuchElementException:
         print("No cookies to accept")
