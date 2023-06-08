@@ -1,20 +1,54 @@
 from flask import Flask, render_template
 from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.support.select import Select
+from selenium.webdriver.chrome.service import Service as ChromeService
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.edge.service import Service as EdgeService
+from webdriver_manager.microsoft import EdgeChromiumDriverManager
+from selenium.webdriver.firefox.service import Service as FirefoxService
+from webdriver_manager.firefox import GeckoDriverManager
 import requests
 import werkzeug
 import os
 import sys
+import atexit
 
 headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/113.0"}
 
-app = Flask(__name__, static_folder='./static', template_folder='./templates')
+browsers = [
+    {'name': 'Firefox', 'driver': webdriver.Firefox, 'service': FirefoxService, 'manager': GeckoDriverManager},
+    {'name': 'Chrome', 'driver': webdriver.Chrome, 'service': ChromeService, 'manager': ChromeDriverManager},
+    {'name': 'Edge', 'driver': webdriver.Edge, 'service': EdgeService, 'manager': EdgeChromiumDriverManager}
+]
 
+driver = None
 
-def get_soup(url):
-    """
-    Obtient la soupe d'html grâce à une url.
-    """
-    return BeautifulSoup(requests.get(url, headers=headers).content, "lxml")
+# Parcourir chaque navigateur et essayer de l'initialiser
+for browser in browsers:
+    try:
+        service = browser['service'](browser['manager']().install())
+        driver = browser['driver'](service=service)
+        print(f"Navigateur {browser['name']} initialisé avec succès.")
+        break  # Sortir de la boucle si l'initialisation du navigateur est réussie
+    except Exception as e:
+        print(f"Échec de l'initialisation du navigateur {browser['name']}: {e}")
+
+# Vérifier si un navigateur a été initialisé avec succès
+if driver is None:
+    print("Aucun navigateur compatible trouvé. Fermeture...")
+else:
+    print("Driver connecté!")
+
+    # Fermer le navigateur à la fermeture
+    atexit.register(lambda: driver.quit())
+
+if getattr(sys, 'frozen', False):
+    template_folder = os.path.join(sys._MEIPASS, 'templates')
+    static_folder = os.path.join(sys._MEIPASS, 'static')
+    app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
+else:
+    app = Flask(__name__)
 
 
 def get_champion_winrate(champion, role, patch=None):
@@ -28,15 +62,21 @@ def get_champion_winrate(champion, role, patch=None):
     role = role.lower()
     champion = champion.lower()
     try:
-        assert role in ["top", "jungle", "mid", "adc", "bot", "support"]
+        assert role in ["top", "jungle", "middle", "adc", "support"]
     except AssertionError:
         print(role)
         raise
-    if patch:
-        url = f"https://www.op.gg/champions/{champion}/{role}/counters?patch={patch}"
+
+    if patch:  # 13_10 not 13.10
+        url = f"https://u.gg/lol/champions/{champion}/counter?patch={patch}&role={role}"
     else:
-        url = f"https://www.op.gg/champions/{champion}/{role}/counters"
-    soup = get_soup(url)
+        url = f"https://u.gg/lol/champions/{champion}/counter&role={role}"
+    driver.get(url)
+
+    button_show_more = driver.find_element_by_class_name("view-more-btn")
+    driver.execute_script("arguments[0].click();", button_show_more);
+
+    soup = button_show_more(driver.page_source, "lxml")
     if len(soup.findAll("aside", limit=2)) > 1:
         print("Ahh")
 
@@ -125,12 +165,3 @@ def home():
 @app.errorhandler(werkzeug.exceptions.InternalServerError)
 def handle_internal_server_error(exception):
     return render_template("error.html", exception=str(exception))
-
-
-if __name__ == '__main__':
-    if getattr(sys, 'frozen', False):
-        template_folder = os.path.join(sys._MEIPASS, 'templates')
-        static_folder = os.path.join(sys._MEIPASS, 'static')
-        app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
-    else:
-        app = Flask(__name__)
