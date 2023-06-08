@@ -77,7 +77,8 @@
                 How to find a good ban?
             </summary>
             Click on the "Best counter" column to sort it, and take one amongst the worst ones!
-            If a lot of them are under 50%, you may want to consider adding another champion to your pool.
+            If a lot of them are under 50%, you may want to consider adding another champion to your pool, or choosing
+            champions which are good against more varied ennemies.
         </details>
         <details class="click-here">
             <summary class="click-here">
@@ -90,8 +91,7 @@
             <summary class="click-here">
                 What does all those 0 and 0% mean?
             </summary>
-            When there isn't enough data on a specific matchup, OP.GG doesn't <s>give a s</s> show the data,
-            making it impossible to show here :(
+            There probably isn't data in Plat+ Ranked on that matchup, sorry.
         </details>
         <details class="click-here">
             <summary class="click-here">
@@ -103,16 +103,9 @@
             <summary class="click-here">
                 Uh, the table is empty...
             </summary>
-            <ul class="table_empty_ul">
-                <li>
-                    If you were trying an off-meta champion in a specific lane (e.g. Rell Top), maybe there is not enough data.
-                    Try a more conventional champion.
-                </li>
-                <li>
-                    If you used "Latest", maybe the patch is so recent there isn't enough data. Try to input the previous patch
-                    in "custom". <i>(This is especially true if your pick is rare-ish: Karthus Bot, Seraphine Mid...)</i>
-                </li>
-            </ul>
+            This shouldn't happen anymore, but here's the link to the
+            <a href="{{ url_for("handle_internal_server_error") }}">error page</a>, where you may find the answer to
+            your problem.
         </details>
         <details class="click-here">
             <summary class="click-here">
@@ -198,6 +191,7 @@
             </tr>
         {% endfor %}
     </table>
+    <p>All data comes from, and all credit should go, to <a href="u.gg">U.GG</a>.</p>
 </div>
 <script>
     function hide_2(event) {

@@ -1,25 +1,33 @@
 from flask import Flask, render_template
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.common.by import By
 from selenium.webdriver.support.select import Select
+from selenium.webdriver.support import expected_conditions as EC
+
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
+
 from selenium.webdriver.edge.service import Service as EdgeService
 from webdriver_manager.microsoft import EdgeChromiumDriverManager
+
 from selenium.webdriver.firefox.service import Service as FirefoxService
 from webdriver_manager.firefox import GeckoDriverManager
+
 import requests
-import werkzeug
+import werkzeug  # server
 import os
 import sys
-import atexit
+import atexit  # do something at exit
+import re  # regular expressions
 
 headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/113.0"}
 
 browsers = [
     {'name': 'Firefox', 'driver': webdriver.Firefox, 'service': FirefoxService, 'manager': GeckoDriverManager},
     {'name': 'Chrome', 'driver': webdriver.Chrome, 'service': ChromeService, 'manager': ChromeDriverManager},
-    {'name': 'Edge', 'driver': webdriver.Edge, 'service': EdgeService, 'manager': EdgeChromiumDriverManager}
+    {'name': 'Edge', 'driver': webdriver.Edge, 'service': EdgeService, 'manager': EdgeChromiumDriverManager},
 ]
 
 driver = None
@@ -39,7 +47,7 @@ if driver is None:
     print("Aucun navigateur compatible trouvé. Fermeture...")
 else:
     print("Driver connecté!")
-
+    driver.implicitly_wait(5)  # Si le driver ne trouve pas un truc, il attendra 5 sec
     # Fermer le navigateur à la fermeture
     atexit.register(lambda: driver.quit())
 
@@ -49,6 +57,10 @@ if getattr(sys, 'frozen', False):
     app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
 else:
     app = Flask(__name__)
+
+
+def keep_only_numbers(string):
+    return re.sub(r'[^0-9.]', '', string)
 
 
 def get_champion_winrate(champion, role, patch=None):
@@ -70,43 +82,43 @@ def get_champion_winrate(champion, role, patch=None):
     if patch:  # 13_10 not 13.10
         url = f"https://u.gg/lol/champions/{champion}/counter?patch={patch}&role={role}"
     else:
-        url = f"https://u.gg/lol/champions/{champion}/counter&role={role}"
+        url = f"https://u.gg/lol/champions/{champion}/counter?role={role}"
+    print(url)
     driver.get(url)
 
-    button_show_more = driver.find_element_by_class_name("view-more-btn")
-    driver.execute_script("arguments[0].click();", button_show_more);
-
-    soup = button_show_more(driver.page_source, "lxml")
-    if len(soup.findAll("aside", limit=2)) > 1:
-        print("Ahh")
+    try:
+        if EC.visibility_of_element_located((By.CLASS_NAME, "qc-cmp2-summary-buttons")):
+            buttons_cookies = driver.find_element(By.CLASS_NAME, "qc-cmp2-summary-buttons")
+            buttons = buttons_cookies.find_elements(By.TAG_NAME, "button")
+            print(buttons)
+            driver.execute_script("arguments[0].click();", buttons[2])
+    except NoSuchElementException:
+        print("No cookies to accept")
+    except Exception as e:
+        print(e)
 
     try:
-        aside = soup.find("aside")
+        if EC.element_to_be_clickable((By.CLASS_NAME, "view-more-btn")):
+            button_show_more = driver.find_element(By.CLASS_NAME, "view-more-btn")
+            driver.execute_script("arguments[0].click();", button_show_more);
+    except NoSuchElementException:
+        print("No more champions to show")
+    except Exception as e:
+        print(e)
+
+    soup = BeautifulSoup(driver.page_source, "lxml")
+    try:
+        counters_list = soup.find("div", class_="counters-list best-win-rate")
     except:
         print(soup.prettify())
         raise
 
-    try:
-        table_container = aside.find("div", class_="table-container")
-    except:
-        print(aside.prettify())
-        raise
-
-    try:
-        table_champions_winrate = table_container.find("div") \
-            .find("table") \
-            .find("tbody")
-    except:
-        print(table_container.prettify())
-        raise
-
-    dict_champions_winrate = {}  # format: champ_name -> [winrate, number_of_games]
-    for tr in table_champions_winrate.findAll("tr"):
-        _, td_champ_name, td_winrate, td_games = tr.findAll("td")
-        champ_name = td_champ_name.find("div").find("div").get_text()
-        winrate = td_winrate.find("span").get_text().replace("%", "")
-        number_of_games = td_games.find("span").get_text().replace(",", "")
-        dict_champions_winrate[champ_name] = [winrate, number_of_games]
+    dict_champions_winrate = {}  # format: champ_name -> [winrate, total_games]
+    for a in counters_list.findAll("a"):
+        champ_name = a.find("div", class_="champion-name").get_text()
+        winrate = keep_only_numbers(a.find("div", class_="win-rate").get_text())
+        total_games = keep_only_numbers(a.find("div", class_="total-games").get_text())
+        dict_champions_winrate[champ_name] = [winrate, total_games]
     return dict_champions_winrate
 
 
@@ -127,7 +139,7 @@ def get_pool_counters(pool, role, patch=None):
         for pool_champ in pool:
             infos = dict_winrates[pool_champ].get(champ)
             if infos:
-                winrate, number_of_games = float(infos[0]), int(infos[1])
+                winrate, number_of_games = 100 - float(infos[0]), int(infos[1])
                 infos_by_champ[pool_champ] = f"{winrate:2.2f}%", f"{number_of_games:,}".replace(",", " ")
                 if winrate and winrate > best_winrate:
                     best_winrate = winrate
@@ -162,6 +174,7 @@ def home():
     return render_template("home.html", champs=champs)
 
 
+@app.route("/error")
 @app.errorhandler(werkzeug.exceptions.InternalServerError)
 def handle_internal_server_error(exception):
     return render_template("error.html", exception=str(exception))

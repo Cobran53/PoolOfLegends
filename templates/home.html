@@ -3,12 +3,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>Pool of Legends Home</title>
     <link rel="stylesheet" href="{{ url_for("static", filename="styles.css") }}"/>
 </head>
 <body>
 <script>
     function submit() {
+        let evaluate_button = document.getElementById("evaluate");
+        evaluate_button.value = "Evaluating..."
+
         let pool = document.querySelector('multi-input').getValues();
         for (let i = 0; i < pool.length; i++) {
             pool[i] = pool[i].replace("'", "").replace(" ", "").replace(".", "")
@@ -47,10 +50,10 @@
             <label for="top">Top</label>
             <input type="radio" id="jungle" name="role" value="jungle">
             <label for="jungle">Jungle</label>
-            <input type="radio" id="mid" name="role" value="mid" checked>
-            <label for="mid">Mid</label>
-            <input type="radio" id="bot" name="role" value="bot">
-            <label for="bot">Bot</label>
+            <input type="radio" id="middle" name="role" value="middle" checked>
+            <label for="middle">Middle</label>
+            <input type="radio" id="adc" name="role" value="adc">
+            <label for="adc">ADC</label>
             <input type="radio" id="support" name="role" value="support">
             <label for="support">Support</label>
         </div>
@@ -67,7 +70,7 @@
 
             <input type="radio" id="custom" name="patch" value="custom">
             <label for="latest">
-                Custom <input type="text" id="patch_custom_text" name="patch" placeholder="13.09" disabled>
+                Custom <input type="text" id="patch_custom_text" name="patch" placeholder="13_9" disabled>
             </label>
         </div>
     </fieldset>
