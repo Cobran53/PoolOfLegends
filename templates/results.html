@@ -14,7 +14,6 @@
 <body>
 <script>
     function sortTable(n, numerically = false) {
-        console.log(n)
         let table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
         table = document.getElementById("table_pool_evaluation");
         switching = true;
@@ -24,11 +23,12 @@
             rows = table.rows;
             for (i = 1; i < (rows.length - 1); i++) {
                 shouldSwitch = false;
-                x = rows[i].getElementsByTagName("TD")[n].innerHTML.toLowerCase();
-                y = rows[i + 1].getElementsByTagName("TD")[n].innerHTML.toLowerCase();
+                x = rows[i].getElementsByTagName("TD")[n].innerHTML;
+                y = rows[i + 1].getElementsByTagName("TD")[n].innerHTML;
+                console.log(x, x.replace(/%.*/, ""))
                 if (numerically) {
-                   x = Number(removeParenthesesText(x.replace("%","").replace(" ","")));
-                   y = Number(removeParenthesesText(y.replace("%","").replace(" ","")));
+                   x = Number(x.replace(/%.*/, ""));
+                   y = Number(y.replace(/%.*/, ""));
                 }
                 if (dir === "asc") {
                     if (x > y) {
@@ -56,17 +56,12 @@
             }
         }
     }
-
-    function removeParenthesesText(inputString) {
-        const pattern = /\([^()]*\)/g;
-        return inputString.replace(pattern, '');
-    }
 </script>
 
-<h1><a class="a_title" href="{{ url_for("home") }}">Pool of Legends</a></h1>
-<div class="aide">
-    <details id="details_aide">
-        <summary id="summary-aide">
+<h1><a class="a-title" href="{{ url_for("home") }}">Pool of Legends</a></h1>
+<div class="help">
+    <details id="details_help">
+        <summary id="summary_help">
             Need help?
         </summary>
         <details class="click-here">
@@ -110,7 +105,7 @@
             </summary>
             See the <a href="{{ url_for("page_credits") }}">credits page</a> for contact info, and tell me what happened!
         </details>
-    </details>`
+    </details>
 </div>
 <div class="container">
     <h2>
@@ -141,55 +136,82 @@
         <tr id="table_headers_pool">
             <th id=0 onclick="sortTable(0)">Champion</th>
             <th id=1 onclick="sortTable(1)">Best counter</th>
-            <th id=2 onclick="sortTable(2, numerically=true)">Winrate vs. <br> <span class="parentheses">(Games)</span></th>
+            <th id=2 onclick="sortTable(2, numerically=true)">Winrate vs. <br> <span class="number-of-games">(Games)</span></th>
             <script>
                 let table_headers = document.getElementById("table_headers_pool")
                 let pool_WR;
                 let i = 3;
-                {% for pool_champ in pool %}
-                    pool_WR = document.createElement('th');
-                    pool_WR.setAttribute("id", (i).toString());
-                    pool_WR.setAttribute("onclick", `sortTable(${i}, numerically=true)`);
-                    pool_WR.innerHTML = "{{ pool_champ }} WR <br> <span class='parentheses'>(Games)</span>";
+                {% if pool|length > 1 %}
+                    {% for pool_champ in pool %}
+                        pool_WR = document.createElement('th');
+                        pool_WR.setAttribute("id", (i).toString());
+                        pool_WR.setAttribute("onclick", `sortTable(${i}, numerically=true)`);
+                        pool_WR.innerHTML = "{{ pool_champ }} WR <br> <span class='number-of-games'>(Games)</span>";
 
-                    button_hide = document.createElement('input');
-                    button_hide.setAttribute("id",`${i}.`)
-                    button_hide.setAttribute("type","button");
-                    button_hide.setAttribute("value","\u{1F441}\uFE0F");
-                    button_hide.onclick = function(event) {
-                        hide(event); // Call the "abc" function with the event object and "i"
-                    };
-                    button_hide.classList.add("smol_button");
+                        button_hide = document.createElement('input');
+                        button_hide.setAttribute("id",`${i}.`)
+                        button_hide.setAttribute("type","button");
+                        button_hide.setAttribute("value","\u{1F441}\uFE0F");
+                        button_hide.onclick = function(event) {
+                            hide(event); // Call the "abc" function with the event object and "i"
+                        };
+                        button_hide.classList.add("smol_button");
 
-                    i += 1;
-                    table_headers.appendChild(pool_WR);
-                    pool_WR.appendChild(button_hide);
-                {% endfor %}
+                        i += 1;
+                        table_headers.appendChild(pool_WR);
+                        pool_WR.appendChild(button_hide);
+                    {% endfor %}
+                {% endif %}
 
             </script>
         </tr>
         {% for champ, counter, winrate, number, infos_by_champ in pool_evaluation %}
-            <tr>
-                <td>{{ champ }}</td>
-                <td>{{ counter }}</td>
-                <td>{{ winrate }} <br> <span class="parentheses">({{ number }})</span></td>
-                {% for pool_champ in pool %}
-                    <td>
-                        {{ infos_by_champ[pool_champ][0] }} 
-                        <br> <span class="parentheses">({{ infos_by_champ[pool_champ][1] }})</span>
-                    </td>
-                {% endfor %}
+            <tr class="{{ counter }}">
+                <td class="champ">{{ champ }}</td>
+                <td class="counter">{{ counter }}</td>
+                <td class="winrate-games">
+                    {{ winrate }} <br>
+                    <span class="number-of-games">on {{ number }} games</span>
+                </td>
+                {% if pool|length > 1 %}
+                    {% for pool_champ in pool %}
+                        <td class="winrate-games">
+                            {{ infos_by_champ[pool_champ][0] }}
+                            <br> <span class="number-of-games">on {{ infos_by_champ[pool_champ][1] }} games</span>
+                        </td>
+                    {% endfor %}
+                {% endif %}
             </tr>
         {% endfor %}
     </table>
-    <p>All data comes from, and all credit should go, to <a href="u.gg">U.GG</a>.</p>
+    <p>
+        All data comes from, and all credit should go, to <a href="u.gg">U.GG</a>. <br>
+        V0.2.0
+    </p>
 </div>
 <script>
+    window.onload = function() {
+        const number_colors = {{ pool|length }};
+        if (number_colors > 1) {
+            let list_of_colors = Array.from({length: number_colors},
+                (_, i) => `hsl(${Math.floor(360 * i / number_colors)},25%,50%)`);
+
+            let i = 0;
+            let styleElement = document.createElement('style');
+            {% for pool_champ in pool %}
+                styleElement.textContent += `.{{ pool_champ }} td { background-color: ${list_of_colors[i]}; }`;
+                i++;
+            {% endfor %}
+            document.head.appendChild(styleElement);
+        }
+    }
+
+
     function hide(event) {
         event.stopPropagation();
         const table = document.getElementById('table_pool_evaluation');
         let i = parseInt(event.currentTarget.id.replace(".",""))
-        table.item(i).style.visibility = "collapse";
+        table.getElementsByTagName('col').item(i).style.visibility = "collapse";
     }
     function ShowAll(){
         const table = document.getElementById('table_pool_evaluation');

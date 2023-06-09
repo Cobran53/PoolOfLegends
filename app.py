@@ -1,19 +1,22 @@
 from flask import Flask, render_template
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.select import Select
+from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.options import Options as ChromeOptions
 
 from selenium.webdriver.edge.service import Service as EdgeService
 from webdriver_manager.microsoft import EdgeChromiumDriverManager
+from selenium.webdriver.edge.options import Options as EdgeOptions
 
 from selenium.webdriver.firefox.service import Service as FirefoxService
 from webdriver_manager.firefox import GeckoDriverManager
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
 
 import werkzeug  # server
 import os
@@ -26,9 +29,11 @@ headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Ge
 
 browsers = {
     "Firefox": {'name': 'Firefox', 'driver': webdriver.Firefox, 'service': FirefoxService,
-                'manager': GeckoDriverManager},
-    "Chrome": {'name': 'Chrome', 'driver': webdriver.Chrome, 'service': ChromeService, 'manager': ChromeDriverManager},
-    "Edge": {'name': 'Edge', 'driver': webdriver.Edge, 'service': EdgeService, 'manager': EdgeChromiumDriverManager},
+                'manager': GeckoDriverManager, 'options': FirefoxOptions},
+    "Chrome": {'name': 'Chrome', 'driver': webdriver.Chrome, 'service': ChromeService,
+               'manager': ChromeDriverManager, 'options': ChromeOptions},
+    "Edge": {'name': 'Edge', 'driver': webdriver.Edge, 'service': EdgeService,
+             'manager': EdgeChromiumDriverManager, 'options': EdgeOptions},
 }
 driver = None
 
@@ -45,24 +50,31 @@ browsers_in_order_no_duplicates = []
 [browsers_in_order_no_duplicates.append(x) for x in browsers_in_order if x not in browsers_in_order_no_duplicates and
  x in ["Firefox", "Edge", "Chrome"]]
 
-# Parcourir chaque navigateur et essayer de l'initialiser
+# Iterate through each browser and try to initialize it
 for key in browsers_in_order_no_duplicates:
     browser = browsers[key]
     try:
-        service = browser['service'](browser['manager']().install())
+        options = browser['options']()
+        if config.getboolean("Browser Options", "show_images"):
+            # Add options to disable image loading
+            options.add_argument('--blink-settings=imagesEnabled=false')
+            options.set_preference('permissions.default.image', 2)
+            if browser['name'] == 'Edge':
+                options.use_chromium = True
+        service = browser['service'](browser['manager']().install(), options=options)
         driver = browser['driver'](service=service)
-        print(f"Navigateur {browser['name']} initialisé avec succès.")
-        break  # Sortir de la boucle si l'initialisation du navigateur est réussie
+        print(f"Successfully initialized {browser['name']} browser.")
+        break  # Exit the loop if browser initialization is successful
     except Exception as e:
-        print(f"Échec de l'initialisation du navigateur {browser['name']}: {e}")
+        print(f"Failed to initialize {browser['name']} browser: {e}")
 
-# Vérifier si un navigateur a été initialisé avec succès
+# Check if a browser was successfully initialized
 if driver is None:
-    print("Aucun navigateur compatible trouvé. Fermeture...")
+    print("No compatible browser found. Exiting...")
 else:
-    print("Driver connecté!")
-    driver.implicitly_wait(config["Wait Time"]["wait_time"])  # Si le driver ne trouve pas un truc, il attendra 5 sec
-    # Fermer le navigateur à la fermeture
+    cookies_wait_time = config.getfloat("Wait Time", "cookies_wait_time")
+    show_more_wait_time = config.getfloat("Wait Time", "show_more_wait_time")
+    # Quit the browser at exit
     atexit.register(lambda: driver.quit())
 
 if getattr(sys, 'frozen', False):
@@ -72,61 +84,74 @@ if getattr(sys, 'frozen', False):
 else:
     app = Flask(__name__)
 
+
 cookies_enabled = False
 
+
 def keep_only_numbers(string):
+    """Removes all characters except numbers and the decimal point from a string before returning it."""
     return re.sub(r'[^0-9.]', '', string)
 
 
 def get_champion_winrate(champion, role, patch=None):
-    """
-    Obtient un dictionnaire contenant un champion adverse, le winrate contre ce champion et son nombre de matchs.
-    :param patch:
-    :param champion:
-    :param role:
-    :return:
+    """Returns a dict contening for each enemy champion, the winrate against it and the nuimber of match.
+
+    patch should be written as 13_9 or 13_10. 13.9 or 13_09 won't work.
     """
     global cookies_enabled
-
-    role = role.lower()
     champion = champion.lower()
+    role = role.lower()
     try:
         assert role in ["top", "jungle", "middle", "adc", "support"]
     except AssertionError:
         print(role)
         raise
 
-    if patch:  # 13_10 not 13.10
+    if patch:  # 13_10, not 13.10
         url = f"https://u.gg/lol/champions/{champion}/counter?patch={patch}&role={role}"
     else:
         url = f"https://u.gg/lol/champions/{champion}/counter?role={role}"
-    print(url)
+    print("URL visited:", url)
     driver.get(url)
 
-    try:
-        if not cookies_enabled and EC.visibility_of_element_located((By.CLASS_NAME, "qc-cmp2-summary-buttons")):
-            buttons_cookies = driver.find_element(By.CLASS_NAME, "qc-cmp2-summary-buttons")
-            buttons = buttons_cookies.find_elements(By.TAG_NAME, "button")
-            cookies_enabled = False
-            driver.execute_script("arguments[0].click();", buttons[2])
-    except NoSuchElementException:
-        print("No cookies to accept")
-    except Exception as e:
-        print(e)
+    if not cookies_enabled:
+        try:
+            if WebDriverWait(driver, show_more_wait_time).until(
+                    EC.visibility_of_element_located((By.CLASS_NAME, "qc-cmp2-summary-buttons"))):
+                buttons_cookies = driver.find_element(By.CLASS_NAME, "qc-cmp2-summary-buttons")
+                buttons = buttons_cookies.find_elements(By.TAG_NAME, "button")
+                cookies_enabled = True
+                driver.execute_script("arguments[0].click();", buttons[2])
+        except NoSuchElementException as excep:
+            print("No cookies to accept. If it crashes, try making the wait time higher.")
+            print("The exception is :", excep)
+        except StaleElementReferenceException as excep:
+            print("There was something wrong. The cookies button isn't active anymore. Try reloading the page, "
+                  "or making the wait time higher.")
+            print("The exception is :", excep)
+        except Exception as excep:
+            print("An unknown exception happened. Here the message", excep, type(excep), sep="\n")
 
     try:
-        if EC.element_to_be_clickable((By.CLASS_NAME, "view-more-btn")):
+        if WebDriverWait(driver, show_more_wait_time).until(
+                EC.element_to_be_clickable((By.CLASS_NAME, "view-more-btn"))):
             button_show_more = driver.find_element(By.CLASS_NAME, "view-more-btn")
-            driver.execute_script("arguments[0].click();", button_show_more);
-    except NoSuchElementException:
-        print("No more champions to show")
-    except Exception as e:
-        print(e)
+            driver.execute_script("arguments[0].click();", button_show_more)
+    except NoSuchElementException as excep:
+        print("No more champions to show. This should only happen with extreme off meta picks. "
+              "If some data isn't found, try making the wait time higher.")
+        print("The exception is :", excep)
+    except StaleElementReferenceException as excep:
+        print("There was something wrong. The ShowMore button isn't active anymore. Try reloading the page, "
+              "or making the wait time higher.")
+        print("The exception is :", excep)
+    except Exception as excep:
+        print("An unknown exception happened. Here the message", excep, type(excep), sep="\n")
 
     soup = BeautifulSoup(driver.page_source, "lxml")
     try:
         counters_list = soup.find("div", class_="counters-list best-win-rate")
-    except:
+    except Exception:
         print(soup.prettify())
         raise
 
@@ -140,12 +165,16 @@ def get_champion_winrate(champion, role, patch=None):
 
 
 def get_pool_counters(pool, role, patch=None):
+    """
+    Return a list containing the best counter among the pool for every champion, along with the WR and games of
+    each pool champ.
+    """
     dict_winrates = {champ: get_champion_winrate(champ, role, patch) for champ in pool}
     list_champions = [set(dict_winrates[key].keys()) for key in dict_winrates.keys()]
     set_champions = set()
     for new_set in list_champions:
-        set_champions = set_champions | new_set  # ajoute le nouveau set de champions sans faire de doublons
-    all_champs = sorted(list(set_champions))  # pour être *sûr* qu'il n'y a pas de doublons
+        set_champions = set_champions | new_set  # add the new set of champions without duplicates
+    all_champs = sorted(list(set_champions))  # to be sure there isn't any duplicates
 
     table = []  # format: champ -> best_champ, best_winrate, best_number_of_games
     for champ in all_champs:
@@ -191,7 +220,7 @@ def home():
     return render_template("home.html", champs=champs)
 
 
-@app.route("/error")
+@app.route("/error", defaults={'exception': None})
 @app.errorhandler(werkzeug.exceptions.InternalServerError)
 def handle_internal_server_error(exception):
     return render_template("error.html", exception=str(exception))
