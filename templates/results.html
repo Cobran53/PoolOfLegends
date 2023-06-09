@@ -25,10 +25,9 @@
                 shouldSwitch = false;
                 x = rows[i].getElementsByTagName("TD")[n].innerHTML;
                 y = rows[i + 1].getElementsByTagName("TD")[n].innerHTML;
-                console.log(x, x.replace(/%.*/, ""))
                 if (numerically) {
-                   x = Number(x.replace(/%.*/, ""));
-                   y = Number(y.replace(/%.*/, ""));
+                   x = Number(x.replace(/%[\S\s]*/, ""));
+                   y = Number(y.replace(/%[\S\s]*/, ""));
                 }
                 if (dir === "asc") {
                     if (x > y) {

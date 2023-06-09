@@ -1,7 +1,10 @@
+import time
+
 from flask import Flask, render_template
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException
+from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException, \
+    ElementNotVisibleException, ElementNotSelectableException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -55,14 +58,18 @@ for key in browsers_in_order_no_duplicates:
     browser = browsers[key]
     try:
         options = browser['options']()
-        if config.getboolean("Browser Options", "show_images"):
+        print(config.getboolean("Browser Options", "show_images"))
+        if not config.getboolean("Browser Options", "show_images"):
             # Add options to disable image loading
             options.add_argument('--blink-settings=imagesEnabled=false')
-            options.set_preference('permissions.default.image', 2)
+            if browser['name'] == "Firefox":
+                options.set_preference('permissions.default.image', 2)
             if browser['name'] == 'Edge':
                 options.use_chromium = True
-        service = browser['service'](browser['manager']().install(), options=options)
-        driver = browser['driver'](service=service)
+        else:
+            print("we keep the image")
+        service = browser['service'](browser['manager']().install())
+        driver = browser['driver'](service=service, options=options)
         print(f"Successfully initialized {browser['name']} browser.")
         break  # Exit the loop if browser initialization is successful
     except Exception as e:
@@ -84,7 +91,6 @@ if getattr(sys, 'frozen', False):
 else:
     app = Flask(__name__)
 
-
 cookies_enabled = False
 
 
@@ -93,10 +99,11 @@ def keep_only_numbers(string):
     return re.sub(r'[^0-9.]', '', string)
 
 
-def get_champion_winrate(champion, role, patch=None):
+def get_champion_winrate(champion, role, patch=None, retry=0):
     """Returns a dict contening for each enemy champion, the winrate against it and the nuimber of match.
 
-    patch should be written as 13_9 or 13_10. 13.9 or 13_09 won't work.
+    patch should be written as "13_9" or "13_10". ("13.9" or "13_09" won't work.)
+    retry is the number of time we retried due to a stale element.
     """
     global cookies_enabled
     champion = champion.lower()
@@ -126,27 +133,45 @@ def get_champion_winrate(champion, role, patch=None):
             print("No cookies to accept. If it crashes, try making the wait time higher.")
             print("The exception is :", excep)
         except StaleElementReferenceException as excep:
-            print("There was something wrong. The cookies button isn't active anymore. Try reloading the page, "
-                  "or making the wait time higher.")
-            print("The exception is :", excep)
+            if retry < 5:
+                print("The cookies element got stale. Retrying", retry + 1, "/5")
+                return get_champion_winrate(champion, role, patch, retry + 1)
+            else:
+                print("Something has gone wrong. An element got stale. Here's the exception.", excep)
         except Exception as excep:
             print("An unknown exception happened. Here the message", excep, type(excep), sep="\n")
 
+    ignore_list = [StaleElementReferenceException, ElementNotVisibleException,
+                   ElementNotSelectableException, NoSuchElementException]
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
     try:
-        if WebDriverWait(driver, show_more_wait_time).until(
+        if WebDriverWait(driver, show_more_wait_time, ignored_exceptions=ignore_list).until(
                 EC.element_to_be_clickable((By.CLASS_NAME, "view-more-btn"))):
             button_show_more = driver.find_element(By.CLASS_NAME, "view-more-btn")
-            driver.execute_script("arguments[0].click();", button_show_more)
+            button_show_more.click()
+        else:
+            print("This isn't supposed to happen. Please send a message to me about how you reached the else part of "
+                  "the WebDriverWait.")
     except NoSuchElementException as excep:
         print("No more champions to show. This should only happen with extreme off meta picks. "
               "If some data isn't found, try making the wait time higher.")
         print("The exception is :", excep)
     except StaleElementReferenceException as excep:
-        print("There was something wrong. The ShowMore button isn't active anymore. Try reloading the page, "
-              "or making the wait time higher.")
-        print("The exception is :", excep)
+        if retry < 5:
+            print("The Show More element got stale. Retrying", retry + 1, "/5")
+            return get_champion_winrate(champion, role, patch, retry + 1)
+        else:
+            print("Something has gone wrong. An element got stale. Here's the exception.", excep)
     except Exception as excep:
-        print("An unknown exception happened. Here the message", excep, type(excep), sep="\n")
+        print("An unexpected exception (type" + str(type(excep)) + ") happened. Here the message", excep, sep="\n")
+    else:
+        wait_until_not = WebDriverWait(driver, show_more_wait_time).until_not(
+            EC.element_to_be_clickable((By.CLASS_NAME, "view-more-btn")))
+        if not wait_until_not:
+            print("DEBUG: Wait until not :", WebDriverWait(driver, show_more_wait_time).until_not(
+                EC.element_to_be_clickable((By.CLASS_NAME, "view-more-btn"))))
+            print("This isn't supposed to happen. Please send a message to me about how you reached the else part of "
+                  "the wait_until_not.")
 
     soup = BeautifulSoup(driver.page_source, "lxml")
     try:
