@@ -27,14 +27,10 @@ fieldset {
     margin: auto;
 }
 
-table, th, tr, td {
-    border: solid 1px #577D86;
-    border-spacing: 0;
-}
-
 table {
     margin: auto;
     width: fit-content;
+    border-spacing: 0;
 }
 
 th {
@@ -42,6 +38,7 @@ th {
 }
 
 td, th {
+    border: solid 1px #577D86;
     position: relative;
     text-align: center;
     padding-right: 1vw;
@@ -51,6 +48,7 @@ td, th {
 summary {
     font-weight: bold;
 }
+
 
 /* Layout Rules */
 .container {
@@ -118,11 +116,24 @@ summary {
     margin-bottom: 0;
 }
 
+
 .number-of-games {
     font-style: italic;
+    font-weight: normal;
 }
 
-.champ {
+.bold {
     font-weight: bold;
 }
 
+.borderless {
+    border: none;
+}
+
+.wider {
+    width: 25%
+}
+
+.small_font_size {
+    font-size: small;
+}

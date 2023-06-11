@@ -1,10 +1,12 @@
 import time
 
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 from bs4 import BeautifulSoup
+
+
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException, \
-    ElementNotVisibleException, ElementNotSelectableException
+    ElementNotVisibleException, ElementNotSelectableException, ElementClickInterceptedException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -58,7 +60,6 @@ for key in browsers_in_order_no_duplicates:
     browser = browsers[key]
     try:
         options = browser['options']()
-        print(config.getboolean("Browser Options", "show_images"))
         if not config.getboolean("Browser Options", "show_images"):
             # Add options to disable image loading
             options.add_argument('--blink-settings=imagesEnabled=false')
@@ -70,6 +71,8 @@ for key in browsers_in_order_no_duplicates:
             print("we keep the image")
         service = browser['service'](browser['manager']().install())
         driver = browser['driver'](service=service, options=options)
+        if browser['name'] == 'Edge':
+            driver.maximize_window()  # Edge has a lot of trouble clicking on stuff, for some reason. This might help.
         print(f"Successfully initialized {browser['name']} browser.")
         break  # Exit the loop if browser initialization is successful
     except Exception as e:
@@ -99,11 +102,13 @@ def keep_only_numbers(string):
     return re.sub(r'[^0-9.]', '', string)
 
 
-def get_champion_winrate(champion, role, patch=None, retry=0):
-    """Returns a dict contening for each enemy champion, the winrate against it and the nuimber of match.
+def get_champion_winrate(champion, role, patch="latest", retry=0):
+    """Returns a dict contening for each enemy champion, the winrate against it and the number of match.
 
     patch should be written as "13_9" or "13_10". ("13.9" or "13_09" won't work.)
     retry is the number of time we retried due to a stale element.
+
+    return dict = format: champ_name -> [winrate, total_games]
     """
     global cookies_enabled
     champion = champion.lower()
@@ -114,12 +119,13 @@ def get_champion_winrate(champion, role, patch=None, retry=0):
         print(role)
         raise
 
-    if patch:  # 13_10, not 13.10
-        url = f"https://u.gg/lol/champions/{champion}/counter?patch={patch}&role={role}"
-    else:
-        url = f"https://u.gg/lol/champions/{champion}/counter?role={role}"
+    url = f"https://u.gg/lol/champions/{champion}/matchups?role={role}"
+    if patch != "latest":  # 13_10, not 13.10
+        url += f"&patch={patch}"
     print("URL visited:", url)
     driver.get(url)
+
+    input()
 
     if not cookies_enabled:
         try:
@@ -141,95 +147,109 @@ def get_champion_winrate(champion, role, patch=None, retry=0):
         except Exception as excep:
             print("An unknown exception happened. Here the message", excep, type(excep), sep="\n")
 
-    ignore_list = [StaleElementReferenceException, ElementNotVisibleException,
-                   ElementNotSelectableException, NoSuchElementException]
-    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-    try:
-        if WebDriverWait(driver, show_more_wait_time, ignored_exceptions=ignore_list).until(
-                EC.element_to_be_clickable((By.CLASS_NAME, "view-more-btn"))):
-            button_show_more = driver.find_element(By.CLASS_NAME, "view-more-btn")
-            button_show_more.click()
-        else:
-            print("This isn't supposed to happen. Please send a message to me about how you reached the else part of "
-                  "the WebDriverWait.")
-    except NoSuchElementException as excep:
-        print("No more champions to show. This should only happen with extreme off meta picks. "
-              "If some data isn't found, try making the wait time higher.")
-        print("The exception is :", excep)
-    except StaleElementReferenceException as excep:
-        if retry < 5:
-            print("The Show More element got stale. Retrying", retry + 1, "/5")
-            return get_champion_winrate(champion, role, patch, retry + 1)
-        else:
-            print("Something has gone wrong. An element got stale. Here's the exception.", excep)
-    except Exception as excep:
-        print("An unexpected exception (type" + str(type(excep)) + ") happened. Here the message", excep, sep="\n")
-    else:
-        wait_until_not = WebDriverWait(driver, show_more_wait_time).until_not(
-            EC.element_to_be_clickable((By.CLASS_NAME, "view-more-btn")))
-        if not wait_until_not:
-            print("DEBUG: Wait until not :", WebDriverWait(driver, show_more_wait_time).until_not(
-                EC.element_to_be_clickable((By.CLASS_NAME, "view-more-btn"))))
-            print("This isn't supposed to happen. Please send a message to me about how you reached the else part of "
-                  "the wait_until_not.")
-
     soup = BeautifulSoup(driver.page_source, "lxml")
     try:
-        counters_list = soup.find("div", class_="counters-list best-win-rate")
+        counters_list = soup.find("div", class_="matchups-table").find("div", class_="rt-tbody")
     except Exception:
         print(soup.prettify())
         raise
 
     dict_champions_winrate = {}  # format: champ_name -> [winrate, total_games]
-    for a in counters_list.findAll("a"):
-        champ_name = a.find("div", class_="champion-name").get_text()
-        winrate = keep_only_numbers(a.find("div", class_="win-rate").get_text())
-        total_games = keep_only_numbers(a.find("div", class_="total-games").get_text())
+    for div in counters_list.findAll("div", class_="rt-tr-group"):
+        row = div.find("div", class_="rt-tr")
+        champ_name = row.find("div", class_="champion").find("a").find("div", class_="champion-name").get_text()
+        winrate = keep_only_numbers(row.find("div", class_="win_rate").find("div").get_text())
+        total_games = row.find("div", class_="matches").find("span").get_text()
         dict_champions_winrate[champ_name] = [winrate, total_games]
     return dict_champions_winrate
 
 
-def get_pool_counters(pool, role, patch=None):
+def get_pool_counters(pool, role, patch=None, delta=False):
     """
     Return a list containing the best counter among the pool for every champion, along with the WR and games of
     each pool champ.
     """
     dict_winrates = {champ: get_champion_winrate(champ, role, patch) for champ in pool}
-    list_champions = [set(dict_winrates[key].keys()) for key in dict_winrates.keys()]
+
+    if delta:
+        dict_total_winrates = {}
+        pool_totals = []
+        for pool_champ in pool:
+            numerator_weighted_average = 0  # It should become the sum of winrate% * number_of_games
+            denominator_weighted_average = 0  # It should become the total number of games on the champ.
+            for winrate, number_of_games in dict_winrates[pool_champ].values():
+                winrate = float(winrate) / 100
+                number_of_games = int(number_of_games.replace(",", ""))
+                numerator_weighted_average += winrate * number_of_games
+                denominator_weighted_average += number_of_games
+            average_winrate = numerator_weighted_average / denominator_weighted_average * 100
+            dict_total_winrates[pool_champ] = average_winrate
+            pool_totals.append([pool_champ, f"{average_winrate:2.2f}%",
+                                f"{denominator_weighted_average:,}".replace(",", " ")])
+
+    list_champions = [set(dict_winrates[counter_champ].keys()) for counter_champ in dict_winrates.keys()]
     set_champions = set()
     for new_set in list_champions:
         set_champions = set_champions | new_set  # add the new set of champions without duplicates
     all_champs = sorted(list(set_champions))  # to be sure there isn't any duplicates
 
-    table = []  # format: champ -> best_champ, best_winrate, best_number_of_games
-    for champ in all_champs:
-        best_champ = "None"
-        best_winrate = 0
-        best_number_of_games = 0
-        infos_by_champ = {}
-        for pool_champ in pool:
-            infos = dict_winrates[pool_champ].get(champ)
-            if infos:
-                winrate, number_of_games = 100 - float(infos[0]), int(infos[1])
-                infos_by_champ[pool_champ] = f"{winrate:2.2f}%", f"{number_of_games:,}".replace(",", " ")
-                if winrate and winrate > best_winrate:
-                    best_winrate = winrate
-                    best_champ = pool_champ
-                    best_number_of_games = number_of_games
-            else:
-                infos_by_champ[pool_champ] = "0%", 0
+    if delta:
+        table = []  # format: counter_champ, best_champ, best_delta, best_number_of_games
+        for counter_champ in all_champs:
+            best_champ = "None"
+            best_delta = -100
+            best_number_of_games = 0
+            infos_by_champ = {}
+            for pool_champ in pool:
+                infos = dict_winrates[pool_champ].get(counter_champ)
+                if infos:
+                    winrate, number_of_games = float(infos[0]), int(infos[1].replace(",", ""))
+                    delta = winrate - dict_total_winrates[pool_champ]
+                    infos_by_champ[pool_champ] = f"{delta:+2.2f}%", f"{number_of_games:,}".replace(",", " ")
+                    if delta and delta > best_delta:
+                        best_delta = delta
+                        best_champ = pool_champ
+                        best_number_of_games = number_of_games
+                else:
+                    infos_by_champ[pool_champ] = "-99.99%", 0
+            table.append([counter_champ, best_champ, f"{best_delta:+2.2f}%",
+                          f"{best_number_of_games:,}".replace(",", " "), infos_by_champ])
 
-        table.append(
-            [champ, best_champ, f"{best_winrate:2.2f}%", f"{best_number_of_games:,}".replace(",", " "), infos_by_champ])
-    return table
+        return table, pool_totals
+
+    else:
+        table = []  # format: counter_champ, best_champ, best_winrate, best_number_of_games
+        for counter_champ in all_champs:
+            best_champ = "None"
+            best_winrate = 0
+            best_number_of_games = 0
+            infos_by_champ = {}
+            for pool_champ in pool:
+                infos = dict_winrates[pool_champ].get(counter_champ)
+                if infos:
+                    winrate, number_of_games = float(infos[0]), int(infos[1].replace(",", ""))
+                    infos_by_champ[pool_champ] = f"{winrate:2.2f}%", f"{number_of_games:,}".replace(",", " ")
+                    if winrate and winrate > best_winrate:
+                        best_winrate = winrate
+                        best_champ = pool_champ
+                        best_number_of_games = number_of_games
+                else:
+                    infos_by_champ[pool_champ] = "0%", 0
+
+            table.append([counter_champ, best_champ, f"{best_winrate:2.2f}%",
+                          f"{best_number_of_games:,}".replace(",", " "), infos_by_champ])
+        return table, None
 
 
-@app.route('/results/<pool>/<string:role>')
-@app.route('/results/<pool>/<string:role>/<patch>')
-def results(pool, role, patch=None):
-    pool = pool.split(",")
-    return render_template("results.html", pool_evaluation=get_pool_counters(pool, role, patch=patch), pool=pool,
-                           role=role, patch=patch)
+@app.route("/results", methods=['GET'])
+def results():
+    pool = [champ.replace("'", "").replace(" ", "").replace(".", "") for champ in request.args.getlist('pool[]')]
+    role = request.args.get("role")
+    patch = request.args.get("patch")
+    delta = request.args.get("delta") == "on"
+    pool_evaluation, pool_totals = get_pool_counters(pool, role, patch=patch, delta=delta)
+    return render_template("results.html", pool_evaluation=pool_evaluation, pool=pool, role=role, patch=patch,
+                           delta=delta, pool_totals=pool_totals)
 
 
 @app.route("/credits")

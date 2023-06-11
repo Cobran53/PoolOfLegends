@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>
         {% for pool_champ in pool[:-1] %}
-                {{ pool_champ }},
+            {{ pool_champ }},
         {% endfor %}
         {{ pool[-1] }}
         | {{ role }}
@@ -13,6 +13,11 @@
 </head>
 <body>
 <script>
+    let champion_single = false;
+    {% if pool|length == 1 %}
+        champion_single = true;
+    {% endif %}
+
     function sortTable(n, numerically = false) {
         let table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
         table = document.getElementById("table_pool_evaluation");
@@ -21,13 +26,13 @@
         while (switching) {
             switching = false;
             rows = table.rows;
-            for (i = 1; i < (rows.length - 1); i++) {
+            for (i = 1; i < (rows.length - 2); i++) {
                 shouldSwitch = false;
                 x = rows[i].getElementsByTagName("TD")[n].innerHTML;
                 y = rows[i + 1].getElementsByTagName("TD")[n].innerHTML;
                 if (numerically) {
-                   x = Number(x.replace(/%[\S\s]*/, ""));
-                   y = Number(y.replace(/%[\S\s]*/, ""));
+                    x = Number(x.replace(/%[\S\s]*/, ""));
+                    y = Number(y.replace(/%[\S\s]*/, ""));
                 }
                 if (dir === "asc") {
                     if (x > y) {
@@ -119,60 +124,68 @@
         {% endif %}
 
         {% if patch!=None %}
-            in patch {{ patch }}.
+            in patch {{ patch }}
+        {% elif patch == "Failed" %}
+            in latest, since the inputed patch failed
         {% else %}
-            in latest patch.
+            in latest patch
         {% endif %}
+
+        {% if delta %}
+            using Deltas
+        {% endif %}
+        :
     </h2>
 
     <table id="table_pool_evaluation">
         <colgroup>
-            <col><col><col><col> <!-- i feel so intelligent -->
-            {% for pool_champ in pool %}
-                <col><col>
-            {% endfor %}
+            <col><col><col> <!-- i feel so intelligent -->
+            {% if pool|length != 1 %}
+                {% for pool_champ in pool %}
+                    <col>
+                {% endfor %}
+            {% endif %}
         </colgroup>
         <tr id="table_headers_pool">
             <th id=0 onclick="sortTable(0)">Champion</th>
             <th id=1 onclick="sortTable(1)">Best counter</th>
-            <th id=2 onclick="sortTable(2, numerically=true)">Winrate vs. <br> <span class="number-of-games">(Games)</span></th>
+            <th id=2 onclick="sortTable(2, numerically=true)">
+                {% if delta %}
+                    Delta vs. <br>
+                {% else %}
+                    Winrate vs. <br>
+                {% endif %}
+                <span class="number-of-games">(Games)</span>
+            </th>
             <script>
                 let table_headers = document.getElementById("table_headers_pool")
                 let pool_WR;
                 let i = 3;
-                {% if pool|length > 1 %}
+                if (!champion_single) {
                     {% for pool_champ in pool %}
                         pool_WR = document.createElement('th');
                         pool_WR.setAttribute("id", (i).toString());
                         pool_WR.setAttribute("onclick", `sortTable(${i}, numerically=true)`);
-                        pool_WR.innerHTML = "{{ pool_champ }} WR <br> <span class='number-of-games'>(Games)</span>";
-
-                        button_hide = document.createElement('input');
-                        button_hide.setAttribute("id",`${i}.`)
-                        button_hide.setAttribute("type","button");
-                        button_hide.setAttribute("value","\u{1F441}\uFE0F");
-                        button_hide.onclick = function(event) {
-                            hide(event); // Call the "abc" function with the event object and "i"
-                        };
-                        button_hide.classList.add("smol_button");
-
-                        i += 1;
+                        {% if delta %}
+                            pool_WR.innerHTML = "{{ pool_champ }} Δ <br> <span class='number-of-games'>(Games)</span>";
+                        {% else %}
+                            pool_WR.innerHTML = "{{ pool_champ }} WR <br> <span class='number-of-games'>(Games)</span>";
+                        {% endif %}
+                        i++;
                         table_headers.appendChild(pool_WR);
-                        pool_WR.appendChild(button_hide);
                     {% endfor %}
-                {% endif %}
-
+                }
             </script>
         </tr>
         {% for champ, counter, winrate, number, infos_by_champ in pool_evaluation %}
             <tr class="{{ counter }}">
-                <td class="champ">{{ champ }}</td>
+                <td class="bold">{{ champ }}</td>
                 <td class="counter">{{ counter }}</td>
-                <td class="winrate-games">
+                <td class="winrate-games bold">
                     {{ winrate }} <br>
                     <span class="number-of-games">on {{ number }} games</span>
                 </td>
-                {% if pool|length > 1 %}
+                {% if pool|length != 1 %}
                     {% for pool_champ in pool %}
                         <td class="winrate-games">
                             {{ infos_by_champ[pool_champ][0] }}
@@ -182,6 +195,28 @@
                 {% endif %}
             </tr>
         {% endfor %}
+        <tr id="tr_hide_buttons">
+            <td class="borderless"></td>
+            <td class="borderless"></td>
+            <td class="borderless"></td>
+        </tr>
+    </table>
+    <p></p>
+    <table>
+        <tr>
+            <th>Champion</th>
+            <th>Total winrate</th>
+            <th>Total number of games</th>
+        </tr>
+        {% if delta %}
+            {% for name, wr, games in pool_totals %}
+                <tr>
+                    <td>{{ name }}</td>
+                    <td>{{ wr }}</td>
+                    <td>{{ games }} games</td>
+                </tr>
+            {% endfor %}
+        {% endif %}
     </table>
     <p>
         All data comes from, and all credit should go, to <a href="u.gg">U.GG</a>. <br>
@@ -190,7 +225,8 @@
 </div>
 <script>
     window.onload = function() {
-        const number_colors = {{ pool|length }};
+        // Pretty colors
+        let number_colors = {{ pool|length }};
         if (number_colors > 1) {
             let list_of_colors = Array.from({length: number_colors},
                 (_, i) => `hsl(${Math.floor(360 * i / number_colors)},25%,50%)`);
@@ -203,8 +239,28 @@
             {% endfor %}
             document.head.appendChild(styleElement);
         }
-    }
 
+        // Hide buttons
+        const number_cols = document.getElementsByTagName("col").length;
+        if (number_cols > 3) {
+
+            let tr_hide = document.getElementById("tr_hide_buttons");
+            let td_hide, button_hide;
+            for (let i = 3; i < number_cols; i++) {
+                td_hide = document.createElement("td")
+                button_hide = document.createElement("input")
+                button_hide.setAttribute("id",`${i}.`)
+                button_hide.setAttribute("type","button");
+                button_hide.setAttribute("value","Hide column");
+                button_hide.onclick = function(event) {
+                    hide(event); // Call the "abc" function with the event object and "i"
+                };
+                button_hide.classList.add("smol_button");
+                td_hide.appendChild(button_hide);
+                tr_hide.appendChild(td_hide);
+            }
+        }
+    }
 
     function hide(event) {
         event.stopPropagation();
@@ -212,6 +268,7 @@
         let i = parseInt(event.currentTarget.id.replace(".",""))
         table.getElementsByTagName('col').item(i).style.visibility = "collapse";
     }
+
     function ShowAll(){
         const table = document.getElementById('table_pool_evaluation');
         let cols = table.getElementsByTagName('col');

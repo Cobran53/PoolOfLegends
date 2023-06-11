@@ -4,18 +4,35 @@
 <head>
     <meta charset="UTF-8">
     <title>Pool of Legends Home</title>
-    <link rel="stylesheet" href="{{ url_for("static", filename="styles.css") }}"/>
+    <link rel="stylesheet" href="{{ url_for("static", filename="styles.css") }}">
+    <!--<link href="static/js/select2/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="static/js/select2/dist/js/select2.min.js"></script>
+    <script src="static/js/jquery/dist/jquery.min.js"></script>-->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.css" rel="stylesheet"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.full.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#pool').select2({
+                placeholder: "Type here your pool of champions...",
+                width: '100%',
+                dropdownCssClass: "small_font_size"
+            })
+        });
+    </script>
+
 </head>
-<body>
+
 <script>
     window.onload = function() {
-        evaluate_button.value = "Evaluate"
+        $("#evaluate").value = "Evaluate";
+
     }
     function submit() {
-        let evaluate_button = document.getElementById("evaluate");
-        evaluate_button.value = "Evaluating..."
+        $("#evaluate").value = "Evaluating...";
+    }
 
-        let pool = document.querySelector('multi-input').getValues();
+    {# let pool = document.querySelector('multi-input').getValues();
         for (let i = 0; i < pool.length; i++) {
             pool[i] = pool[i].replace("'", "").replace(" ", "").replace(".", "")
         }
@@ -29,64 +46,68 @@
         } else {
             window.location.href = "./results/" + pool.join(",") + "/" + role;
         }
-    }
+    } #}
 </script>
 <h1><a class="a-title" href="{{ url_for("home") }}">Pool of Legends</a></h1>
 
 <div class="container">
-    <fieldset>
-        <legend>Champions</legend>
-        <multi-input id="multi-champs">
-            <input id="input-champs" list="champs">
-            <datalist id="champs">
+    <form id="evaluation_form" method="GET" action="/results">
+        <fieldset class="wider">
+            <legend>Champions</legend>
+            <select id="pool" name="pool[]" multiple="multiple" style="width: 100%">
                 {% for champ in champs %}
-                    <option value="{{ champ }}"></option>
+                    <option value="{{ champ }}">{{ champ }}</option>
                 {% endfor %}
-            </datalist>
-        </multi-input>
-    </fieldset>
+            </select>
+        </fieldset>
 
-    <fieldset class="radio_fieldset">
-        <legend>Roles</legend>
-        <div class="radio">
-            <input type="radio" id="top" name="role" value="top">
-            <label for="top">Top</label>
-            <input type="radio" id="jungle" name="role" value="jungle">
-            <label for="jungle">Jungle</label>
-            <input type="radio" id="middle" name="role" value="middle" checked>
-            <label for="middle">Middle</label>
-            <input type="radio" id="adc" name="role" value="adc">
-            <label for="adc">ADC</label>
-            <input type="radio" id="support" name="role" value="support">
-            <label for="support">Support</label>
+        <fieldset class="radio_fieldset">
+            <legend>Roles</legend>
+            <div class="radio">
+                <input type="radio" id="top" name="role" value="top">
+                <label for="top">Top</label>
+                <input type="radio" id="jungle" name="role" value="jungle">
+                <label for="jungle">Jungle</label>
+                <input type="radio" id="middle" name="role" value="middle" checked>
+                <label for="middle">Middle</label>
+                <input type="radio" id="adc" name="role" value="adc">
+                <label for="adc">ADC</label>
+                <input type="radio" id="support" name="role" value="support">
+                <label for="support">Support</label>
+            </div>
+        </fieldset>
+
+
+        <fieldset class="radio_fieldset">
+            <legend>Patchs</legend>
+            <div class="radio">
+                <input type="radio" id="latest" name="patch" value="latest" checked>
+                <label for="latest">
+                    Latest
+                </label>
+
+                <input type="radio" id="custom" name="patch" value="custom">
+                <label for="patch_custom_text">
+                    Custom <input type="text" id="patch_custom_text" name="patch" placeholder="13_9" disabled>
+                </label>
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Extras</legend>
+            <input id="delta" type="checkbox" name="delta">
+            <label for="delta">Use deltas instead of winrates.</label>
+        </fieldset>
+
+        <div class="evaluate">
+            <input id="evaluate" type="submit" onclick="submit()" value="Evaluate">
         </div>
-    </fieldset>
-
-
-    <fieldset class="radio_fieldset">
-        <legend>Patchs</legend>
-        <div class="radio">
-            <input type="radio" id="latest" name="patch" value="latest" checked>
-            <label for="latest">
-                Latest
-            </label>
-
-            <input type="radio" id="custom" name="patch" value="custom">
-            <label for="latest">
-                Custom <input type="text" id="patch_custom_text" name="patch" placeholder="13_9" disabled>
-            </label>
-        </div>
-    </fieldset>
-
-    <div class="evaluate">
-        <input id="evaluate" type="button" name="button" onclick="submit()" value="Evaluate">
-    </div>
+    </form>
     <p>
         All data comes from, and all credit should go, to <a href="u.gg">U.GG</a>. <br>
         V0.2.0
     </p>
 </div>
-<script src="static/js/multi-input.js"></script>
 <script>
     let radio_latest = document.getElementById("latest");
     let radio_custom = document.getElementById("custom");
