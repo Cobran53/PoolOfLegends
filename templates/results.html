@@ -112,30 +112,55 @@
     </details>
 </div>
 <div class="container">
-    <h2>
-        {% if (pool|length == 1) %}
-            {{ pool[0] }} {{ role.capitalize() }}
-        {% else %}
-            Pool made of
-            {% for pool_champ in pool[:-1] %}
-                {{ pool_champ }},
-            {% endfor %}
-            and {{ pool[-1] }} for {{ role.capitalize() }}
-        {% endif %}
+    <h2 id="h2-title"></h2>
+    <script>
+        window.addEventListener('load', function () {
+            console.log("hey")
+            let h2 = document.getElementById("h2-title");
+            let pool;
+            {% if (pool|length == 1) %}
+                pool = "{{ pool[0] }} {{ role.capitalize() }}"
+            {% else %}
+                pool = "Pool made of " + "{{ pool[0] }} "
+                {% for pool_champ in pool[1:-1] %}
+                    pool += "{{ pool_champ }}, "
+                {% endfor %}
+                pool += "and {{ pool[-1] }} for {{ role.capitalize() }},"
+            {% endif %}
+            let patch;
+            {% if patch == "latest" %}
+                patch = "latest patch,"
+            {% else %}
+                patch = "patch {{ patch }},"
+            {% endif %}
+            let delta = "";
+            {% if delta %}
+                delta = "using Deltas, ";
+            {% endif %}
+            let raw_rank = "{{ rank }}";
+            const dict_rank = {
+                "default": "Platinum +",
+                "diamond_plus": "Diamond +",
+                "diamond_2_plus": "Diamond 2 +",
+                "master_plus": "Master +",
+                "overall": "all ranks",
+                "challenger": "Challenger",
+                "grandmaster": "Grandmaster",
+                "master": "Master",
+                "diamond": "Diamond",
+                "platinum": "Platinium",
+                "gold": "Gold",
+                "silver": "Silver",
+                "bronze": "Bronze",
+                "iron": "Iron",
+            }
+            let rank = `in ${dict_rank[raw_rank]}`;
 
-        {% if patch!=None %}
-            in patch {{ patch }}
-        {% elif patch == "Failed" %}
-            in latest, since the inputed patch failed
-        {% else %}
-            in latest patch
-        {% endif %}
+            console.log(`${pool} in ${patch} ${delta}${rank}.`)
+            h2.textContent = `${pool} in ${patch} ${delta}${rank}.`;
+        });
 
-        {% if delta %}
-            using Deltas
-        {% endif %}
-        :
-    </h2>
+    </script>
 
     <table id="table_pool_evaluation">
         <colgroup>
@@ -202,25 +227,25 @@
         </tr>
     </table>
     <p></p>
+
     <table>
         <tr>
             <th>Champion</th>
             <th>Total winrate</th>
             <th>Total number of games</th>
         </tr>
-        {% if delta %}
-            {% for name, wr, games in pool_totals %}
-                <tr>
-                    <td>{{ name }}</td>
-                    <td>{{ wr }}</td>
-                    <td>{{ games }} games</td>
-                </tr>
-            {% endfor %}
-        {% endif %}
+        {% for name, wr, games in pool_totals %}
+            <tr>
+                <td>{{ name }}</td>
+                <td>{{ wr }}</td>
+                <td>{{ games }} games</td>
+            </tr>
+        {% endfor %}
     </table>
+
     <p>
         All data comes from, and all credit should go, to <a href="u.gg">U.GG</a>. <br>
-        V0.2.0
+        V0.3.0.
     </p>
 </div>
 <script>

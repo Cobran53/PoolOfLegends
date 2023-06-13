@@ -18,36 +18,22 @@
                 width: '100%',
                 dropdownCssClass: "small_font_size"
             })
+            $("#evaluate").value = "Evaluate";
+            $('#expandable-delta').click(function() {
+                event.preventDefault()
+                $('#expanded-delta').toggleClass('active');
+            });
         });
     </script>
 
 </head>
-
+<body>
 <script>
-    window.onload = function() {
-        $("#evaluate").value = "Evaluate";
-
-    }
     function submit() {
         $("#evaluate").value = "Evaluating...";
     }
-
-    {# let pool = document.querySelector('multi-input').getValues();
-        for (let i = 0; i < pool.length; i++) {
-            pool[i] = pool[i].replace("'", "").replace(" ", "").replace(".", "")
-        }
-
-        let role = document.querySelector('input[name="role"]:checked').value;
-
-        let value_patch = document.querySelector('input[name="patch"]:checked').value;
-        if (value_patch === "custom") {
-            let patch = document.getElementById("patch_custom_text").value;
-            window.location.href = "./results/" + pool.join(",") + "/" + role + "/" + patch;
-        } else {
-            window.location.href = "./results/" + pool.join(",") + "/" + role;
-        }
-    } #}
 </script>
+
 <h1><a class="a-title" href="{{ url_for("home") }}">Pool of Legends</a></h1>
 
 <div class="container">
@@ -79,7 +65,7 @@
 
 
         <fieldset class="radio_fieldset">
-            <legend>Patchs</legend>
+            <legend>Patch</legend>
             <div class="radio">
                 <input type="radio" id="latest" name="patch" value="latest" checked>
                 <label for="latest">
@@ -88,15 +74,47 @@
 
                 <input type="radio" id="custom" name="patch" value="custom">
                 <label for="patch_custom_text">
-                    Custom <input type="text" id="patch_custom_text" name="patch" placeholder="13_9" disabled>
+                    Custom <input type="text" id="patch_custom_text" name="patch_custom"
+                                  title="Must look like '13_9', not '13_09', nor '13.9'."
+                                  placeholder="13_9" pattern="^(?!0[0-9])\d+_(?!0)\d+$" disabled>
                 </label>
             </div>
         </fieldset>
 
         <fieldset>
+            <legend>Rank</legend>
+            <label id="label_rank" for="rank">
+                Choose a rank :
+            </label>
+            <select id="rank" name="rank">
+                <option value="default" selected>Platinum +</option>
+                <option value="diamond_plus">Diamond +</option>
+                <option value="diamond_2_plus">Diamond 2 +</option>
+                <option value="master_plus">Master +</option>
+                <option value="overall">All ranks</option>
+                <option value="challenger">Challenger</option>
+                <option value="grandmaster">Grandmaster</option>
+                <option value="master">Master</option>
+                <option value="diamond">Diamond</option>
+                <option value="platinum">Platinium</option>
+                <option value="gold">Gold</option>
+                <option value="silver">Silver</option>
+                <option value="bronze">Bronze</option>
+                <option value="iron">Iron</option>
+            </select>
+        </fieldset>
+
+        <fieldset>
             <legend>Extras</legend>
             <input id="delta" type="checkbox" name="delta">
-            <label for="delta">Use deltas instead of winrates.</label>
+            <label id="label_delta" for="delta">
+                Use <dfn id="expandable-delta">deltas</dfn> instead of winrates?
+            </label>
+            <span id="expanded-delta" class="expanded">
+                   The delta is the difference between the average winrate and the specific winrate. <br>
+                   It's better if you know your champions well, since it will ignore meta fluctuations. <br>
+                   However, if your pick is really really rare, it might be better to compare winrates instead.
+            </span>
         </fieldset>
 
         <div class="evaluate">
@@ -105,7 +123,7 @@
     </form>
     <p>
         All data comes from, and all credit should go, to <a href="u.gg">U.GG</a>. <br>
-        V0.2.0
+        V0.3.0.
     </p>
 </div>
 <script>
@@ -120,6 +138,8 @@
     radio_custom.addEventListener("change", function() {
         text_custom.disabled = false;
     });
+
+
 </script>
 </body>
 </html>

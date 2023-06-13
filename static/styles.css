@@ -49,6 +49,18 @@ summary {
     font-weight: bold;
 }
 
+label[title] {
+    white-space: normal;
+}
+
+dfn {
+    text-decoration: underline dotted;
+    font-style: italic;
+}
+
+dfn:hover {
+    cursor: help;
+}
 
 /* Layout Rules */
 .container {
@@ -137,3 +149,13 @@ summary {
 .small_font_size {
     font-size: small;
 }
+
+.expanded {
+  display: none;
+}
+
+.expanded.active {
+  display: block;
+}
+
+
