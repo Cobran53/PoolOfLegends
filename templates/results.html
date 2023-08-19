@@ -87,7 +87,7 @@
             <summary class="click-here">
                 What does all those 0 and 0% mean?
             </summary>
-            There probably isn't data in Plat+ Ranked on that matchup, sorry.
+            There probably isn't data with your settings on that matchup, sorry.
         </details>
         <details class="click-here">
             <summary class="click-here">
@@ -139,7 +139,8 @@
             {% endif %}
             let raw_rank = "{{ rank }}";
             const dict_rank = {
-                "default": "Platinum +",
+                "platinum_plus": "Platinum +",
+                "default": "Emerald +",
                 "diamond_plus": "Diamond +",
                 "diamond_2_plus": "Diamond 2 +",
                 "master_plus": "Master +",
@@ -148,7 +149,8 @@
                 "grandmaster": "Grandmaster",
                 "master": "Master",
                 "diamond": "Diamond",
-                "platinum": "Platinium",
+                "emerald": "Emerald",
+                "platinum": "Platinum",
                 "gold": "Gold",
                 "silver": "Silver",
                 "bronze": "Bronze",

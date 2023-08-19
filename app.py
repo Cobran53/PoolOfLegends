@@ -21,15 +21,13 @@ if getattr(sys, 'frozen', False):
 else:
     app = Flask(__name__)
 
-patch_failed = False
-
 
 def keep_only_numbers(string):
     """Removes all characters except numbers and the decimal point from a string before returning it."""
     return re.sub(r'[^0-9.]', '', string)
 
 
-def get_champion_winrate(champion, role, patch="latest", rank="default"):
+def get_champion_winrate(champion, role, patch="latest", rank="default", region="default"):
     """Returns a dict contening for each enemy champion, the winrate against it and the number of match.
 
     patch should be written as "13_9" or "13_10". ("13.9" or "13_09" won't work.)
@@ -37,7 +35,6 @@ def get_champion_winrate(champion, role, patch="latest", rank="default"):
 
     return dict = format: champ_name -> [winrate, total_games]
     """
-    global patch_failed
     champion = champion.lower()
     role = role.lower()
     try:
@@ -46,11 +43,15 @@ def get_champion_winrate(champion, role, patch="latest", rank="default"):
         print(role)
         raise
 
+    print(champion, role, patch, rank, region, sep=" | ")
     url = f"https://u.gg/lol/champions/{champion}/matchups?role={role}"
     if patch != "latest":  # 13_10, not 13.10
         url += f"&patch={patch}"
-    if rank != "default":  # 13_10, not 13.10
+    if rank != "default":
         url += f"&rank={rank}"
+
+    if region != "default":
+        url += f"&region={region}"
     print("URL visited:", url)
     response = requests.get(url, headers=headers, allow_redirects=True)
 
@@ -78,12 +79,13 @@ def get_champion_winrate(champion, role, patch="latest", rank="default"):
     return dict_champions_winrate
 
 
-def get_pool_counters(pool, role, patch=None, delta=False, rank="default"):
+def get_pool_counters(pool, role, patch=None, delta=False, rank="default", region="default"):
     """
     Return a list containing the best counter among the pool for every champion, along with the WR and games of
     each pool champ.
     """
-    dict_winrates = {champ: get_champion_winrate(champ, role, patch, rank) for champ in pool}
+
+    dict_winrates = {champ: get_champion_winrate(champ, role, patch, rank, region) for champ in pool}
 
     dict_total_winrates = {}
     pool_totals = []
@@ -143,20 +145,25 @@ def get_pool_counters(pool, role, patch=None, delta=False, rank="default"):
 
 @app.route("/results", methods=['GET'])
 def results():
-    global patch_failed
-    patch_failed = False
     pool = [champ.replace("'", "").replace(" ", "").replace(".", "") for champ in request.args.getlist('pool[]')]
     role = request.args.get("role")
     patch = request.args.get("patch")
     if patch == "custom":
         patch = request.args.get("patch_custom")
-    rank = request.args.get("rank")
     delta = request.args.get("delta") == "on"
-    pool_evaluation, pool_totals = get_pool_counters(pool, role, patch, delta, rank)
-    if patch_failed:
-        patch = "Failed"
-    return render_template("results.html", pool_evaluation=pool_evaluation, pool=pool, role=role, patch=patch,
-                           delta=delta, pool_totals=pool_totals, rank=rank)
+    rank = request.args.get("rank")
+
+    region = request.args.get("region")
+    pool_evaluation, pool_totals = get_pool_counters(pool, role, patch, delta, rank, region)
+    return render_template("results.html",
+                           pool_evaluation=pool_evaluation,
+                           pool=pool,
+                           role=role,
+                           patch=patch,
+                           delta=delta,
+                           pool_totals=pool_totals,
+                           rank=rank,
+                           region=region)
 
 
 @app.route("/credits")

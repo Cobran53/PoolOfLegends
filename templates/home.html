@@ -42,7 +42,7 @@
             <legend>Champions</legend>
             <select id="pool" name="pool[]" multiple="multiple" style="width: 100%">
                 {% for champ in champs %}
-                    <option value="{{ champ }}">{{ champ }}</option>
+                <option value="{{ champ }}">{{ champ }}</option>
                 {% endfor %}
             </select>
         </fieldset>
@@ -87,7 +87,8 @@
                 Choose a rank :
             </label>
             <select id="rank" name="rank">
-                <option value="default" selected>Platinum +</option>
+                <option value="platinum_plus">Platinum +</option>
+                <option value="default" selected>Emerald +</option>
                 <option value="diamond_plus">Diamond +</option>
                 <option value="diamond_2_plus">Diamond 2 +</option>
                 <option value="master_plus">Master +</option>
@@ -96,7 +97,8 @@
                 <option value="grandmaster">Grandmaster</option>
                 <option value="master">Master</option>
                 <option value="diamond">Diamond</option>
-                <option value="platinum">Platinium</option>
+                <option value="emerald">Emerald</option>
+                <option value="platinum">Platinum</option>
                 <option value="gold">Gold</option>
                 <option value="silver">Silver</option>
                 <option value="bronze">Bronze</option>
@@ -105,16 +107,46 @@
         </fieldset>
 
         <fieldset>
+            <legend>Region</legend>
+            <label id="label_region" for="region">
+                Choose a rank :
+            </label>
+            <select id="region" name="region">
+                <option value="default" selected>World</option>
+                <option value="na1">NA</option>
+                <option value="euw1">EUW</option>
+                <option value="kr">KR</option>
+                <option value="br1">BR</option>
+                <option value="eun1">EUN</option>
+                <option value="jp1">JP</option>
+                <option value="la1">LAN</option>
+                <option value="la2">LAS</option>
+                <option value="oc1">OCE</option>
+                <option value="ru">RU</option>
+                <option value="tr1">TR</option>
+                <option value="ph2">PH</option>
+                <option value="sg2">SG</option>
+                <option value="th2">TH</option>
+                <option value="tw2">TW</option>
+                <option value="vn2">VN</option>
+            </select>
+        </fieldset>
+
+        <fieldset>
             <legend>Extras</legend>
             <input id="delta" type="checkbox" name="delta">
             <label id="label_delta" for="delta">
-                Use <dfn id="expandable-delta">deltas</dfn> instead of winrates?
+                Use
+                <div class="tooltip">
+                    deltas
+                    <span class="tooltiptext">
+                        The delta is the difference between the average winrate and the specific winrate.
+                        It's better if you know your champions well, since it will ignore meta fluctuations.
+                        However, if your pick is really really rare, it might be better to compare winrates instead.
+                    </span>
+                </div>
+                instead of winrates?
             </label>
-            <span id="expanded-delta" class="expanded">
-                   The delta is the difference between the average winrate and the specific winrate. <br>
-                   It's better if you know your champions well, since it will ignore meta fluctuations. <br>
-                   However, if your pick is really really rare, it might be better to compare winrates instead.
-            </span>
         </fieldset>
 
         <div class="evaluate">
