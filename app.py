@@ -28,7 +28,7 @@ def keep_only_numbers(string):
 
 
 def get_champion_winrate(champion, role, patch="latest", rank="default", region="default"):
-    """Returns a dict contening for each enemy champion, the winrate against it and the number of match.
+    """Returns a dict containing, for each enemy champion, the winrate against it and the number of match.
 
     patch should be written as "13_9" or "13_10". ("13.9" or "13_09" won't work.)
     retry is the number of time we retried due to a stale element.
